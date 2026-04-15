@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
-import { mockClients, type Client } from "@/lib/mock-data";
+import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/use-data";
+import type { Client } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Clients() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const { data: clients = [], isLoading } = useClients();
+  const createClient = useCreateClient();
+  const updateClient = useUpdateClient();
+  const deleteClient = useDeleteClient();
+
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -26,7 +31,7 @@ export default function Clients() {
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const data: Omit<Client, "id" | "is_active"> = {
+    const data = {
       name: fd.get("name") as string,
       contact_no: fd.get("contact_no") as string,
       email: fd.get("email") as string,
@@ -36,20 +41,38 @@ export default function Clients() {
     };
 
     if (editing) {
-      setClients((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...data } : c)));
-      toast({ title: "Client updated" });
+      updateClient.mutate(
+        { id: editing.id, ...data },
+        {
+          onSuccess: () => {
+            toast({ title: "Client updated" });
+            setEditing(null);
+            setDialogOpen(false);
+          },
+          onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+        }
+      );
     } else {
-      setClients((prev) => [...prev, { ...data, id: crypto.randomUUID(), is_active: true }]);
-      toast({ title: "Client added" });
+      createClient.mutate(data, {
+        onSuccess: () => {
+          toast({ title: "Client added" });
+          setDialogOpen(false);
+        },
+        onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+      });
     }
-    setEditing(null);
-    setDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
-    toast({ title: "Client removed" });
+    deleteClient.mutate(id, {
+      onSuccess: () => toast({ title: "Client removed" }),
+      onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    });
   };
+
+  if (isLoading) {
+    return <p className="text-muted-foreground py-12 text-center">Loading clients...</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -86,7 +109,9 @@ export default function Clients() {
                   />
                 </div>
               ))}
-              <Button type="submit" className="mt-2">{editing ? "Save Changes" : "Add Client"}</Button>
+              <Button type="submit" className="mt-2" disabled={createClient.isPending || updateClient.isPending}>
+                {editing ? "Save Changes" : "Add Client"}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -94,12 +119,7 @@ export default function Clients() {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search clients..."
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Input placeholder="Search clients..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="grid gap-3">

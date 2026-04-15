@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, CalendarIcon, X, Eye } from "lucide-react";
 import { format } from "date-fns";
-import { mockClients, mockServices, mockInvoices, type Invoice, type Service } from "@/lib/mock-data";
+import { useClients, useServices, useInvoices, useCreateInvoice } from "@/hooks/use-data";
+import type { Invoice, Service } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,11 @@ interface LineItem {
 }
 
 export default function Invoices() {
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+  const { data: clients = [] } = useClients();
+  const { data: services = [] } = useServices();
+  const { data: invoices = [], isLoading } = useInvoices();
+  const createInvoice = useCreateInvoice();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [selectedClient, setSelectedClient] = useState("");
@@ -55,27 +60,31 @@ export default function Invoices() {
       toast({ title: "Please fill all fields", variant: "destructive" });
       return;
     }
-    const client = mockClients.find((c) => c.id === selectedClient)!;
-    const total = lineItems.reduce((s, li) => s + li.amount, 0);
-    const newInvoice: Invoice = {
-      id: crypto.randomUUID(),
-      client_id: selectedClient,
-      client_name: client.name,
-      invoice_number: `INV-${String(invoices.length + 1).padStart(4, "0")}`,
-      date: format(date, "yyyy-MM-dd"),
-      total,
-      paid: markPaid,
-      status: markPaid ? "paid" : "draft",
-      sent_at: null,
-    };
-    setInvoices((prev) => [newInvoice, ...prev]);
-    toast({ title: `Invoice ${newInvoice.invoice_number} created` });
-    setDialogOpen(false);
-    setSelectedClient("");
-    setDate(new Date());
-    setLineItems([]);
-    setMarkPaid(false);
+
+    createInvoice.mutate(
+      {
+        clientId: selectedClient,
+        date: format(date, "yyyy-MM-dd"),
+        lineItems,
+        markPaid,
+      },
+      {
+        onSuccess: (inv) => {
+          toast({ title: `Invoice #${inv.invoice_number} created` });
+          setDialogOpen(false);
+          setSelectedClient("");
+          setDate(new Date());
+          setLineItems([]);
+          setMarkPaid(false);
+        },
+        onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+      }
+    );
   };
+
+  if (isLoading) {
+    return <p className="text-muted-foreground py-12 text-center">Loading invoices...</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -98,7 +107,7 @@ export default function Invoices() {
                 <Select value={selectedClient} onValueChange={setSelectedClient}>
                   <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
                   <SelectContent>
-                    {mockClients.filter((c) => c.is_active).map((c) => (
+                    {clients.filter((c) => c.is_active).map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -121,7 +130,7 @@ export default function Invoices() {
               <div className="grid gap-2">
                 <Label>Service Codes (click to add)</Label>
                 <div className="flex flex-wrap gap-2">
-                  {mockServices.map((s) => (
+                  {services.map((s) => (
                     <Button
                       key={s.id}
                       variant={lineItems.some((li) => li.code === s.code) ? "default" : "outline"}
@@ -163,7 +172,9 @@ export default function Invoices() {
                 <Label htmlFor="markPaid">Mark as paid</Label>
               </div>
 
-              <Button onClick={handleSubmit} className="w-full">Create Invoice</Button>
+              <Button onClick={handleSubmit} className="w-full" disabled={createInvoice.isPending}>
+                {createInvoice.isPending ? "Creating..." : "Create Invoice"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -173,7 +184,7 @@ export default function Invoices() {
       <Dialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif">Invoice {previewInvoice?.invoice_number}</DialogTitle>
+            <DialogTitle className="font-serif">Invoice #{previewInvoice?.invoice_number}</DialogTitle>
           </DialogHeader>
           {previewInvoice && (
             <div className="space-y-3 py-2">
@@ -192,11 +203,11 @@ export default function Invoices() {
             <CardContent className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-accent-foreground">
-                  {inv.client_name.split(" ").map((n) => n[0]).join("")}
+                  {inv.client_name.split(" ").map((n: string) => n[0]).join("")}
                 </div>
                 <div>
                   <p className="font-medium text-foreground">{inv.client_name}</p>
-                  <p className="text-sm text-muted-foreground">{inv.invoice_number} · {inv.date}</p>
+                  <p className="text-sm text-muted-foreground">#{inv.invoice_number} · {inv.date}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
