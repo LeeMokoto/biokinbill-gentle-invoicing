@@ -31,9 +31,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="flex h-16 items-center gap-2 px-6 border-b border-sidebar-border">
           <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-sm">
-            B
+            M
           </div>
-          <h1 className="text-xl font-serif text-sidebar-primary-foreground">BiokinBill</h1>
+          <h1 className="text-xl font-serif text-sidebar-primary-foreground">MishVoice</h1>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-sidebar-border px-6 py-4">
-          <p className="text-xs text-sidebar-foreground/60">Not connected to backend</p>
+          <p className="text-xs text-sidebar-foreground/60"></p>
         </div>
       </aside>
 
@@ -73,7 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <h2 className="text-lg font-serif text-foreground">
-            {navItems.find((n) => n.to === location.pathname)?.label ?? "BiokinBill"}
+            {navItems.find((n) => n.to === location.pathname)?.label ?? "MishVoice"}
           </h2>
         </header>
 
