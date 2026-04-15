@@ -102,10 +102,12 @@ export function useServices() {
 export function useCreateService() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (service: Omit<Service, 'id' | 'is_active'>) => {
-      const { data, error } = await supabase
-        .from('services')
-        .insert({ ...service, is_active: true })
+mutationFn: async (service: Omit<Service, 'id' | 'is_active'>) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('services')
+    .insert({ ...service, is_active: true, user_id: user.id })
         .select()
         .single();
       if (error) throw error;
