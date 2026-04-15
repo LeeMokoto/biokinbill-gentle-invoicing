@@ -18,6 +18,7 @@ import Invoices from "./pages/Invoices";
 import BulkGenerate from "./pages/BulkGenerate";
 import ServiceCodes from "./pages/ServiceCodes";
 import NotFound from "./pages/NotFound";
+import { Analytics } from "@vercel/analytics/next"
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <Analytics />
         <BrowserRouter>
           <AppLayout>
             <Routes>
